@@ -184,18 +184,17 @@
     </div>
 
     <script>
-        // 同仁名單 (依照筆畫排序，醫師群改為 Dr. 格式並排在自訂輸入上方)
+        // 依據正式班表核對之同仁名單
         const colleaguesList = [
-            "王佩津", "石怡婷", "江恩賜", "余鳳春", "吳宜佑", "李佳玲", "李明芬", "李忻穗", "李祈億", "沈思語", "林世昌", "林佳怡", "林柏豪", "林琪汝", "邱郁雯", "張志杰", "徐鳳春", "郭珈妤", "陳正庸", "陳美慧", "陳雯瑄", "劉俞柔", "楊智雯", "劉秀玲", "潘郁婷", "蔡依臻", "謝慧苓", "鍾恩賜", "簡思語", "顏淑梅",
-            "陳秀蓮",
+            "謝慧苓", "林柏豪", "李明芬", "林佳怡", "曾啟富", "陳宜佑", "石怡婷", "張志杰", "陳正庸", "林玥汝", "郭珈妤", "簡思語", "陳雯瑄", "黃淑梅", "李佳玲", "劉俞柔", "李忻穗", "王佩津", "楊智雯", "陳美慧", "徐鳳春", "許佩瑜", "鍾恩賜",
             "Dr.洪", "Dr.李", "Dr.邱", "Dr.林", "Dr.周", "Dr.陳",
             "自訂輸入 (其他同仁)"
         ];
 
-        // 完整白巷子菜單資料庫
+        // 依據白巷子官方菜單完整對應資料庫 (品項、M/L規格與熱飲支援)
         const menuData = [
             { name: "黃金蕎麥茶", prices: {L: 30, M: 25}, hasHot: true, fixedSweet: false, fixedIce: false },
-            { name: "紅烏龍龍王", prices: {L: 30, M: 25}, hasHot: true, fixedSweet: false, fixedIce: false },
+            { name: "紅烏龍王", prices: {L: 30, M: 25}, hasHot: true, fixedSweet: false, fixedIce: false },
             { name: "松柏嶺冬片", prices: {L: 30, M: 25}, hasHot: false, fixedSweet: false, fixedIce: false },
             { name: "古早味紅茶", prices: {L: 30, M: 25}, hasHot: true, fixedSweet: false, fixedIce: false },
             { name: "茉香綠茶", prices: {L: 30, M: 25}, hasHot: true, fixedSweet: false, fixedIce: false },
