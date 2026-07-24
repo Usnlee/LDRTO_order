@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>白巷子智慧揪團點餐系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="max-w-md mx-auto p-4">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-rose-600">白巷子智慧揪團</h1>
+            <p class="text-sm text-gray-500 mt-1">揪團訂好茶，今天喝什麼</p>
+            <p class="text-xs text-gray-400 mt-1">下好離手不要囉唆</p>
+        </header>
+
+        <div class="flex bg-white rounded-xl shadow-sm p-1 mb-6">
+            <button id="btn-drink" onclick="switchTab('drink')" class="flex-1 py-2 text-sm font-medium rounded-lg bg-rose-600 text-white">我要喝</button>
+            <button id="btn-pay" onclick="switchTab('pay')" class="flex-1 py-2 text-sm font-medium rounded-lg text-gray-600">我付錢</button>
+        </div>
+
+        <!-- Drink Mode -->
+        <div id="section-drink" class="space-y-4">
+            <select id="colleague-select" onchange="checkCustomName()" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="" disabled selected>請選擇同仁姓名</option>
+            </select>
+            <input type="text" id="custom-name" placeholder="請輸入姓名" class="hidden w-full p-3 border border-gray-300 rounded-lg">
+            
+            <select id="drink-select" onchange="updateOptions()" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="" disabled selected>請選擇飲品</option>
+            </select>
+            <select id="size-select" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="" disabled selected>規格</option>
+            </select>
+            <select id="sweet-select" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="" disabled selected>甜度</option>
+            </select>
+            <select id="temp-select" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="" disabled selected>冰塊溫度</option>
+            </select>
+            <select id="topping-select" class="w-full p-3 border border-gray-300 rounded-lg">
+                <option value="" disabled selected>加料區 (選填)</option>
+            </select>
+            
+            <input type="text" id="remark" placeholder="備註：例如「自費」或「多訂」" class="w-full p-3 border border-gray-300 rounded-lg">
+            
+            <button onclick="confirmOrder()" class="w-full bg-rose-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-rose-700">我想清楚了送出</button>
+        </div>
+
+        <!-- Pay Mode -->
+        <div id="section-pay" class="hidden space-y-4">
+            <div class="grid grid-cols-3 gap-2 text-center text-sm">
+                <div class="bg-white p-3 rounded-lg shadow-sm"><div class="text-gray-400">總人數</div><div id="stat-people" class="font-bold text-lg">0</div></div>
+                <div class="bg-white p-3 rounded-lg shadow-sm"><div class="text-gray-400">總杯數</div><div id="stat-cups" class="font-bold text-lg">0</div></div>
+                <div class="bg-white p-3 rounded-lg shadow-sm"><div class="text-gray-400">總金額</div><div id="stat-total" class="font-bold text-lg">0</div></div>
+            </div>
+            <div id="order-list" class="space-y-2"></div>
+            <div class="flex gap-2">
+                <button onclick="exportToExcel()" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold">匯出成 Excel 檔</button>
+                <button onclick="clearOrders()" class="flex-1 bg-gray-600 text-white py-3 rounded-lg font-bold">清空所有訂購</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm">
+            <h2 class="text-lg font-bold mb-4">訂單確認</h2>
+            <div id="modal-content" class="text-sm space-y-2 mb-6 text-gray-700"></div>
+            <div class="flex gap-2">
+                <button onclick="closeModal()" class="flex-1 py-3 bg-gray-200 rounded-lg font-bold text-gray-700">修改</button>
+                <button onclick="saveOrder()" class="flex-1 py-3 bg-rose-600 text-white rounded-lg font-bold">確認送出</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const colleagues = ["石怡婷", "李佳玲", "李明芬", "李忻檍", "林佳怡", "林柏豪", "林玥汝", "邱佩瑜", "徐鳳春", "郭珈妏", "曾啟富", "黃淑梅", "楊智雯", "劉俞柔", "簡思語", "謝慧苓", "鐘恩賜", "陳正庸", "陳宜佑", "陳雯渲", "陳秀蓮", "陳美慧", "洪醫師", "李醫師", "邱醫師", "林醫師", "周醫師", "陳醫師", "自訂輸入 (其他同仁)"];
+        const toppings = [{name: "無", price: 0}, {name: "小珍珠", price: 5}, {name: "混珠", price: 5}, {name: "紅豆", price: 10}, {name: "黑糖珍珠", price: 10}, {name: "椰果", price: 10}, {name: "仙草凍", price: 10}, {name: "布丁", price: 15}, {name: "綠茶凍", price: 15}, {name: "奶蓋", price: 15}, {name: "芝士奶蓋", price: 15}];
+        const menu = [
+            { name: "黃金蕎麥茶", priceM: 25, priceL: 30, hot: true },
+            { name: "紅烏龍茶王", priceM: 25, priceL: 30, hot: true },
+            { name: "紅茶拿鐵", priceM: 45, priceL: 55, hot: true },
+            { name: "波霸奶茶", priceM: 45, priceL: 55, hot: false },
+            { name: "阿華田拿鐵", priceM: 55, priceL: 65, hot: true },
+            { name: "芋見黑糖珍珠鮮奶", priceM: 55, priceL: 65, hot: true },
+            { name: "紅豆抹茶拿鐵", priceM: 60, priceL: 70, hot: true }
+        ];
+
+        let orders = JSON.parse(localStorage.getItem('orders') || '[]');
+
+        function init() {
+            const cs = document.getElementById('colleague-select');
+            cs.innerHTML = '<option value="" disabled selected>請選擇同仁姓名</option>' + colleagues.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            const ds = document.getElementById('drink-select');
+            ds.innerHTML = '<option value="" disabled selected>請選擇飲品</option>' + menu.map((m, i) => `<option value="${i}">${m.name}</option>`).join('');
+            
+            const ts = document.getElementById('topping-select');
+            ts.innerHTML = '<option value="" disabled selected>請選擇加料 (選填)</option>' + toppings.map((t, i) => `<option value="${i}">${t.name} (+$${t.price})</option>`).join('');
+            
+            // 這些不預選
+            document.getElementById('size-select').innerHTML = '<option value="" disabled selected>規格</option>';
+            document.getElementById('sweet-select').innerHTML = '<option value="" disabled selected>甜度</option>';
+            document.getElementById('temp-select').innerHTML = '<option value="" disabled selected>冰塊溫度</option>';
+        }
+
+        function switchTab(tab) {
+            document.getElementById('section-drink').classList.toggle('hidden', tab !== 'drink');
+            document.getElementById('section-pay').classList.toggle('hidden', tab !== 'pay');
+            document.getElementById('btn-drink').className = tab === 'drink' ? 'flex-1 py-2 text-sm font-medium rounded-lg bg-rose-600 text-white' : 'flex-1 py-2 text-sm font-medium rounded-lg text-gray-600';
+            document.getElementById('btn-pay').className = tab === 'pay' ? 'flex-1 py-2 text-sm font-medium rounded-lg bg-rose-600 text-white' : 'flex-1 py-2 text-sm font-medium rounded-lg text-gray-600';
+            if(tab === 'pay') updatePayUI();
+        }
+
+        function checkCustomName() {
+            document.getElementById('custom-name').classList.toggle('hidden', document.getElementById('colleague-select').value !== '自訂輸入 (其他同仁)');
+        }
+
+        function updateOptions() {
+            const drink = menu[document.getElementById('drink-select').value];
+            const ss = document.getElementById('size-select');
+            ss.innerHTML = `<option value="M">M ($${drink.priceM})</option><option value="L">L ($${drink.priceL})</option>`;
+            
+            const sw = document.getElementById('sweet-select');
+            sw.innerHTML = '<option value="正常糖">正常糖</option><option value="少糖">少糖</option><option value="半糖">半糖</option><option value="微糖">微糖</option><option value="無糖">無糖</option>';
+            
+            const ts = document.getElementById('temp-select');
+            ts.innerHTML = '<option value="正常冰">正常冰</option><option value="少冰">少冰</option><option value="微冰">微冰</option><option value="去冰">去冰</option>';
+            if(drink.hot) ts.innerHTML += '<option value="溫">溫</option><option value="熱">熱</option>';
+        }
+
+        let pendingOrder = null;
+        function confirmOrder() {
+            const cs = document.getElementById('colleague-select').value;
+            const ds = document.getElementById('drink-select').value;
+            const sz = document.getElementById('size-select').value;
+            const sw = document.getElementById('sweet-select').value;
+            const tp = document.getElementById('temp-select').value;
+
+            if(!cs || !ds || !sz || !sw || !tp) return alert("請完整填寫所有選項");
+            
+            const name = cs === '自訂輸入 (其他同仁)' ? document.getElementById('custom-name').value : cs;
+            if(!name) return alert("請輸入姓名");
+            
+            const drink = menu[ds];
+            const basePrice = parseInt(sz === 'M' ? drink.priceM : drink.priceL);
+            const toppingIdx = document.getElementById('topping-select').value;
+            const topping = toppingIdx !== "" ? toppings[toppingIdx] : {name: "無", price: 0};
+            const total = basePrice + topping.price;
+            
+            const remark = document.getElementById('remark').value;
+            const isSelfPay = remark.includes('自費') || remark.includes('多訂');
+            // 若為自費/多訂，則全額自費，否則超過50元才需自費
+            const selfPay = isSelfPay ? total : Math.max(0, total - 50);
+
+            pendingOrder = { name, drink: `${drink.name} (${sz})`, sweet: sw, temp: tp, topping: topping.name, total, selfPay, remark, drinkRaw: drink.name, sizeRaw: sz };
+
+            document.getElementById('modal-content').innerHTML = `訂購人: ${name}<br>飲品: ${pendingOrder.drink}<br>糖/冰: ${pendingOrder.sweet}/${pendingOrder.temp}<br>加料: ${topping.name}<br>備註: ${remark}<br><span class="font-bold text-red-600">價格: $${total} ${selfPay > 0 ? `(需自費 $${selfPay})` : ''}</span>`;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function saveOrder() {
+            orders.push(pendingOrder);
+            localStorage.setItem('orders', JSON.stringify(orders));
+            document.getElementById('modal').classList.add('hidden');
+            alert("訂購成功！");
+            
+            // Reset to clean state
+            document.getElementById('colleague-select').selectedIndex = 0;
+            document.getElementById('drink-select').selectedIndex = 0;
+            document.getElementById('size-select').innerHTML = '<option value="" disabled selected>規格</option>';
+            document.getElementById('sweet-select').innerHTML = '<option value="" disabled selected>甜度</option>';
+            document.getElementById('temp-select').innerHTML = '<option value="" disabled selected>冰塊溫度</option>';
+            document.getElementById('topping-select').selectedIndex = 0;
+            document.getElementById('remark').value = '';
+            document.getElementById('custom-name').classList.add('hidden');
+        }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function clearOrders() { orders = []; localStorage.removeItem('orders'); updatePayUI(); }
+
+        function updatePayUI() {
+            const list = document.getElementById('order-list');
+            list.innerHTML = orders.map((o,i) => `<div class="bg-white p-3 rounded-lg shadow-sm flex justify-between items-center text-sm"><span>${o.name}: ${o.drink} (${o.sweet}/${o.temp})</span><span class="font-bold">$${o.total}</span></div>`).join('');
+            document.getElementById('stat-people').innerText = new Set(orders.map(o => o.name)).size;
+            document.getElementById('stat-cups').innerText = orders.length;
+            document.getElementById('stat-total').innerText = orders.reduce((sum, o) => sum + o.total, 0);
+        }
+
+        function exportToExcel() {
+            const wb = XLSX.utils.book_new();
+            
+            // Tab 1: 店家訂購清單 (符合截圖欄位: 飲品, 規格, 甜度, 冰塊溫度, 數量, 金額, 姓名)
+            const data1 = orders.map(o => ({ 
+                "飲品": o.drinkRaw, 
+                "規格": o.sizeRaw, 
+                "甜度": o.sweet, 
+                "冰塊溫度": o.temp, 
+                "數量": 1, 
+                "金額": o.total,
+                "姓名": o.name 
+            }));
+            
+            // 計算總計
+            const totalQty = orders.length;
+            const totalAmt = orders.reduce((sum, o) => sum + o.total, 0);
+            data1.push({ "飲品": "總計", "金額": totalAmt }); 
+
+            const ws1 = XLSX.utils.json_to_sheet(data1);
+            XLSX.utils.book_append_sheet(wb, ws1, "店家訂購清單");
+
+            // Tab 2: 個人收費明細 (符合截圖欄位: 姓名, 飲品, 規格, 甜度, 冰塊溫度, 備註, 金額, 自費差額)
+            const data2 = orders.map(o => ({ 
+                "姓名": o.name,
+                "飲品": o.drinkRaw, 
+                "規格": o.sizeRaw, 
+                "甜度": o.sweet, 
+                "冰塊溫度": o.temp, 
+                "備註": o.remark, 
+                "金額": o.total, 
+                "自費差額": o.selfPay 
+            }));
+            
+            // 計算總計
+            const totalSelfPay = orders.reduce((sum, o) => sum + o.selfPay, 0);
+            data2.push({ "姓名": "總計", "金額": totalAmt, "自費差額": totalSelfPay });
+
+            const ws2 = XLSX.utils.json_to_sheet(data2);
+            XLSX.utils.book_append_sheet(wb, ws2, "個人收費明細");
+
+            XLSX.writeFile(wb, "訂購單.xlsx");
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
